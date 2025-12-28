@@ -1,0 +1,40 @@
+# Conversion to YAML from Properties formar report
+# Warnings:
+# - The yaml file had comments which are lost in the refactoring!
+spring:
+  application:
+    name: smart-auth
+  datasource:
+    url: jdbc:mysql://localhost:3306/spring_security?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+  sql:
+    init:
+      mode: always
+      platform: mysql
+      continue-on-error: false
+server:
+  port: 9099
+logging:
+  level:
+    org:
+      springframework:
+        security: DEBUG
+      hibernate:
+        SQL: DEBUG
+        
+        
+jwt:
+  secret: "ltQzfVOu2PKIbR50oYndykRFWMsrS4hsCxcw2pErx6A0//UdGeplbHCqnz3jlQILIYGZFaAOGs7yX3FWM4ZHuQ=="
+  issuer: "smart-auth-service"
+  expiration-ms: 900000
+
