@@ -14,6 +14,7 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import com.smart.jwtsecurity.filter.JwtAuthorizationFilter;
+import com.smart.jwtsecurity.filter.LoginRateLimitFilter;
 import com.smart.jwtsecurity.util.JwtUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class SecurityConfig {
 	private final JwtUtil jwtUtil;
 	private final AuthenticationEntryPoint jwtAuthenticationEntryPoint;
 	private final AccessDeniedHandler jwtAccessDeniedHandler;
+	private final LoginRateLimitFilter loginRateLimitFilter;
 
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -38,15 +40,23 @@ public class SecurityConfig {
 				// =========================
 				// ❌ No HttpSession (JWT only)
 				// =========================
-				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+				.sessionManagement(session ->
+						session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
 				// =========================
 				// 🔐 Authorization rules
 				// =========================
 				.authorizeHttpRequests(auth -> auth
-						.requestMatchers("/login", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+						.requestMatchers(
+								"/login",
+								"/v3/api-docs/**",
+								"/swagger-ui/**",
+								"/swagger-ui.html"
+						).permitAll()
 
-						.requestMatchers("/admin/**").hasRole("ADMIN").anyRequest().authenticated())
+						.requestMatchers("/admin/**").hasRole("ADMIN")
+						.anyRequest().authenticated()
+				)
 
 				// =========================
 				// ❌ Disable form login
@@ -54,20 +64,35 @@ public class SecurityConfig {
 				.formLogin(form -> form.disable())
 
 				// =========================
-				// ✅ Enable HTTP Basic ONLY for login
+				// ❌ Disable HTTP Basic
+				// (JSON login only)
 				// =========================
-				.httpBasic(basic -> basic.authenticationEntryPoint(jwtAuthenticationEntryPoint))
+				.httpBasic(basic -> basic.disable())
 
 				// =========================
 				// 🧪 Custom 401 / 403 handlers
 				// =========================
-				.exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint)
-						.accessDeniedHandler(jwtAccessDeniedHandler));
+				.exceptionHandling(ex -> ex
+						.authenticationEntryPoint(jwtAuthenticationEntryPoint)
+						.accessDeniedHandler(jwtAccessDeniedHandler)
+				);
+
+		// =========================
+		// 🛡️ Login Rate Limiting Filter
+		// (Protects /login from brute force)
+		// =========================
+		http.addFilterBefore(
+				loginRateLimitFilter,
+				UsernamePasswordAuthenticationFilter.class
+		);
 
 		// =========================
 		// 🔑 JWT Authorization Filter
 		// =========================
-		http.addFilterBefore(new JwtAuthorizationFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class);
+		http.addFilterBefore(
+				new JwtAuthorizationFilter(jwtUtil),
+				UsernamePasswordAuthenticationFilter.class
+		);
 
 		return http.build();
 	}
@@ -84,7 +109,9 @@ public class SecurityConfig {
 	// 🔑 AuthenticationManager
 	// =========================
 	@Bean
-	AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+	AuthenticationManager authenticationManager(
+			AuthenticationConfiguration configuration
+	) throws Exception {
 		return configuration.getAuthenticationManager();
 	}
 }
